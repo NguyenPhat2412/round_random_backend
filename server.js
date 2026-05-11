@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
+const cors = require("cors");
 const connectDB = require("./middleware/dbMiddleware");
-const corsMiddleware = require("./middleware/corsMiddleware");
 
 // Import routes
 const itemRoutes = require("./routes/itemRoutes");
@@ -10,9 +10,24 @@ const uploadRoutes = require("./routes/uploadRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map((origin) =>
+  origin.trim(),
+) || ["http://localhost:3000", "http://localhost:5173"];
 
 // Middleware
-app.use(corsMiddleware);
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Not allowed by CORS"));
+    },
+    credentials: true,
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
