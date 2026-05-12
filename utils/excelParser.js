@@ -37,7 +37,7 @@ const importItemsFromExcel = async (filePath) => {
     ];
     const icons = ["🎁", "🎉", "🏆", "⭐", "🎊", "💎", "🎯", "🌟"];
 
-    const items = data.map((row, index) => {
+    const newItems = data.map((row, index) => {
       const nameField = Object.keys(row).find(
         (key) =>
           key.toLowerCase().includes("name") ||
@@ -56,11 +56,37 @@ const importItemsFromExcel = async (filePath) => {
       };
     });
 
-    // Clear old items and insert new ones
-    await Item.deleteMany({});
-    const createdItems = await Item.insertMany(items);
+    // Get all existing items
+    const existingItems = await Item.find({});
+    const newItemNames = new Set(
+      newItems.map((item) => item.name.toLowerCase()),
+    );
+    const existingItemNames = new Map(
+      existingItems.map((item) => [item.name.toLowerCase(), item._id]),
+    );
 
-    return createdItems;
+    // Update or deactivate existing items
+    const updatePromises = existingItems.map((existingItem) => {
+      const isInNewList = newItemNames.has(existingItem.name.toLowerCase());
+      return Item.findByIdAndUpdate(
+        existingItem._id,
+        { isActive: isInNewList },
+        { new: true },
+      );
+    });
+
+    // Add new items
+    const newItemNames2 = newItems.filter(
+      (newItem) => !existingItemNames.has(newItem.name.toLowerCase()),
+    );
+    const createdItems = await Item.insertMany(newItemNames2);
+
+    // Wait for all updates and get final list
+    await Promise.all(updatePromises);
+
+    // Return all active items after import
+    const finalItems = await Item.find({ isActive: true });
+    return finalItems;
   } catch (error) {
     throw new Error(`Failed to import items: ${error.message}`);
   }

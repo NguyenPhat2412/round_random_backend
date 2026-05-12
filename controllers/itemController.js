@@ -31,6 +31,31 @@ exports.getAllItems = async (req, res) => {
   }
 };
 
+// Get item by ID
+exports.getItemById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const item = await Item.findById(id);
+
+    if (!item) {
+      return res.status(404).json({
+        success: false,
+        message: "Item not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: item,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // Add single item
 exports.addItem = async (req, res) => {
   try {
@@ -97,7 +122,7 @@ exports.deleteItem = async (req, res) => {
 exports.updateItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, color, icon } = req.body;
+    const { name, description, color, icon, isActive } = req.body;
 
     const existingItem = await Item.findById(id);
 
@@ -108,6 +133,7 @@ exports.updateItem = async (req, res) => {
         description: description ?? existingItem?.description,
         color: color ?? existingItem?.color,
         icon: icon ?? existingItem?.icon,
+        isActive: isActive !== undefined ? isActive : existingItem?.isActive,
       },
       { new: true },
     );
