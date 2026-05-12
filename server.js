@@ -7,6 +7,7 @@ const connectDB = require("./middleware/dbMiddleware");
 const itemRoutes = require("./routes/itemRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -38,6 +39,7 @@ connectDB();
 app.use("/api/items", itemRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/upload", uploadRoutes);
+app.use("/api/users", userRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
