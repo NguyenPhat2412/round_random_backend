@@ -8,6 +8,7 @@ const itemRoutes = require("./routes/itemRoutes");
 const resultRoutes = require("./routes/resultRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const userRoutes = require("./routes/userRoutes");
+const savedListRoutes = require("./routes/savedListRoutes");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ app.use("/api/items", itemRoutes);
 app.use("/api/results", resultRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/saved-lists", savedListRoutes);
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {

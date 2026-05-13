@@ -1,23 +1,24 @@
 const express = require("express");
 const router = express.Router();
 const itemController = require("../controllers/itemController");
+const authenticateToken = require("../middleware/authMiddleware");
 
 // Get all items
 router.get("/", itemController.getAllItems);
 
-// Spin wheel (must be before /:id to avoid route conflict)
+// Spin wheel (must be before /:id to avoid route conflict) - PROTECTED
 router.post("/spin/wheel", itemController.spinWheel);
 
 // Get item by ID
 router.get("/:id", itemController.getItemById);
 
-// Add new item
-router.post("/", itemController.addItem);
+// Add new item - PROTECTED
+router.post("/", authenticateToken, itemController.addItem);
 
-// Update item
-router.put("/:id", itemController.updateItem);
+// Update item - PROTECTED
+router.put("/:id", authenticateToken, itemController.updateItem);
 
-// Delete item
-router.delete("/:id", itemController.deleteItem);
+// Delete item - PROTECTED
+router.delete("/:id", authenticateToken, itemController.deleteItem);
 
 module.exports = router;

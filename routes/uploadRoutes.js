@@ -1,13 +1,14 @@
 const express = require("express");
 const fileUpload = require("express-fileupload");
 const router = express.Router();
+const authenticateToken = require("../middleware/authMiddleware");
 const { importItemsFromExcel } = require("../utils/excelParser");
 
 // Middleware to handle file uploads
 router.use(fileUpload());
 
-// Import items from Excel
-router.post("/import-excel", async (req, res) => {
+// Import items from Excel - PROTECTED
+router.post("/import-excel", authenticateToken, async (req, res) => {
   try {
     if (!req.files || !req.files.file) {
       return res.status(400).json({

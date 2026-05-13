@@ -1,55 +1,90 @@
+const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email || "")
+      .trim()
+      .toLowerCase();
 
     // Validate input
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         success: false,
         message: "Email và mật khẩu là bắt buộc",
       });
     }
 
-    // Check if user exists
-    let user = await User.findOne({ email });
+    const adminEmail = String(
+      process.env.ADMIN_EMAIL || process.env.EMAIL_HOST || "",
+    )
+      .trim()
+      .toLowerCase();
+    const adminPassword = String(
+      process.env.ADMIN_PASSWORD || process.env.EMAIL_PASSWORD || "",
+    ).trim();
 
-    if (user) {
-      // User exists, check password
-      if (user.password !== password) {
+    // Prioritize pre-configured account from environment variables
+    if (adminEmail && adminPassword) {
+      if (normalizedEmail !== adminEmail || password !== adminPassword) {
         return res.status(401).json({
           success: false,
-          message: "Mật khẩu không chính xác",
+          message: "Email hoặc mật khẩu không chính xác",
         });
       }
+
+      const secret =
+        process.env.JWT_SECRET || "your-secret-key-change-in-production";
+      const token = jwt.sign({ id: "admin-env", email: adminEmail }, secret, {
+        expiresIn: "30d",
+      });
 
       return res.status(200).json({
         success: true,
         message: "Đăng nhập thành công",
+        token,
         user: {
-          id: user._id,
-          email: user.email,
-        },
-      });
-    } else {
-      // User doesn't exist, create new user
-      user = new User({
-        email,
-        password,
-      });
-
-      await user.save();
-
-      return res.status(201).json({
-        success: true,
-        message: "Đăng ký thành công",
-        user: {
-          id: user._id,
-          email: user.email,
+          id: "admin-env",
+          email: adminEmail,
         },
       });
     }
+
+    // Fallback: only allow existing users in database (no auto registration)
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Tài khoản không tồn tại hoặc chưa được cấp quyền",
+      });
+    }
+
+    if (user.password !== password) {
+      return res.status(401).json({
+        success: false,
+        message: "Email hoặc mật khẩu không chính xác",
+      });
+    }
+
+    const secret =
+      process.env.JWT_SECRET || "your-secret-key-change-in-production";
+    const token = jwt.sign(
+      { id: user._id.toString(), email: user.email },
+      secret,
+      { expiresIn: "30d" },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Đăng nhập thành công",
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+      },
+    });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({
