@@ -5,7 +5,7 @@ exports.getAllResults = async (req, res) => {
   try {
     const results = await Result.find()
       .populate("itemId")
-      .sort({ createdAt: -1 });
+      .sort({ spinTime: 1 });
 
     res.status(200).json({
       success: true,
@@ -22,12 +22,13 @@ exports.getAllResults = async (req, res) => {
 // Get results by page (pagination)
 exports.getResultsByPage = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.query;
+    const page = Math.max(parseInt(req.params.page, 10) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit, 10) || 10, 1);
     const skip = (page - 1) * limit;
 
     const results = await Result.find()
       .populate("itemId")
-      .sort({ createdAt: -1 })
+      .sort({ spinTime: 1 })
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -37,7 +38,7 @@ exports.getResultsByPage = async (req, res) => {
       success: true,
       data: results,
       pagination: {
-        current_page: parseInt(page),
+        current_page: page,
         total_pages: Math.ceil(total / limit),
         total_records: total,
       },
