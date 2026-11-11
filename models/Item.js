@@ -23,6 +23,14 @@ const itemSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // Tỷ lệ trúng (%) theo từng lượt quay, vd [{ round: 1, rate: 30 }]
+    winRates: [
+      {
+        _id: false,
+        round: { type: Number, required: true, min: 1 },
+        rate: { type: Number, required: true, min: 0, max: 100 },
+      },
+    ],
   },
   {
     timestamps: true,

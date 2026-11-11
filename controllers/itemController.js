@@ -1,5 +1,7 @@
+const jwt = require("jsonwebtoken");
 const Item = require("../models/Item");
 const Result = require("../models/Result");
+const { pickWinner } = require("../utils/pickWinner");
 
 const AUTO_COLORS = [
   "#0ea5e9",
@@ -12,13 +14,30 @@ const AUTO_COLORS = [
   "#ef4444",
 ];
 
+const isAdminRequest = (req) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return false;
+  try {
+    jwt.verify(
+      token,
+      process.env.JWT_SECRET || "your-secret-key-change-in-production",
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 const getAutoColor = () =>
   AUTO_COLORS[Math.floor(Math.random() * AUTO_COLORS.length)];
 
 // Get all items
 exports.getAllItems = async (req, res) => {
   try {
-    const items = await Item.find({ isActive: true });
+    // Chỉ admin đã đăng nhập mới thấy tỷ lệ trúng
+    const query = Item.find({ isActive: true });
+    if (!isAdminRequest(req)) query.select("-winRates");
+    const items = await query;
     res.status(200).json({
       success: true,
       data: items,
@@ -35,7 +54,9 @@ exports.getAllItems = async (req, res) => {
 exports.getItemById = async (req, res) => {
   try {
     const { id } = req.params;
-    const item = await Item.findById(id);
+    const query = Item.findById(id);
+    if (!isAdminRequest(req)) query.select("-winRates");
+    const item = await query;
 
     if (!item) {
       return res.status(404).json({
@@ -122,7 +143,26 @@ exports.deleteItem = async (req, res) => {
 exports.updateItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, color, icon, isActive } = req.body;
+    const { name, description, color, icon, isActive, winRates } = req.body;
+
+    if (
+      winRates !== undefined &&
+      (!Array.isArray(winRates) ||
+        winRates.some(
+          (r) =>
+            !Number.isInteger(r?.round) ||
+            r.round < 1 ||
+            typeof r.rate !== "number" ||
+            r.rate < 0 ||
+            r.rate > 100,
+        ) ||
+        new Set(winRates.map((r) => r.round)).size !== winRates.length)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "winRates phải là [{ round >= 1, rate 0-100 }], không trùng lượt",
+      });
+    }
 
     const existingItem = await Item.findById(id);
 
@@ -134,6 +174,7 @@ exports.updateItem = async (req, res) => {
         color: color ?? existingItem?.color,
         icon: icon ?? existingItem?.icon,
         isActive: isActive !== undefined ? isActive : existingItem?.isActive,
+        winRates: winRates ?? existingItem?.winRates,
       },
       { new: true },
     );
@@ -170,9 +211,9 @@ exports.spinWheel = async (req, res) => {
       });
     }
 
-    // Random selection
-    const randomIndex = Math.floor(Math.random() * items.length);
-    const selectedItem = items[randomIndex];
+    // Lượt hiện tại = số lần đã quay + 1 (xóa lịch sử quay sẽ về lượt 1)
+    const round = (await Result.countDocuments()) + 1;
+    const selectedItem = pickWinner(items, round);
 
     // Save result
     const result = await Result.create({
@@ -189,8 +230,9 @@ exports.spinWheel = async (req, res) => {
     res.status(200).json({
       success: true,
       data: {
-        item: selectedItem,
+        item: { ...selectedItem.toObject(), winRates: undefined },
         result: result,
+        round,
       },
       message: "Spin completed",
     });
